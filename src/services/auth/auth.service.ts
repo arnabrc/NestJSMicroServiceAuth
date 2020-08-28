@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ClientProxy } from '@nestjs/microservices';
 import { Inject, RequestTimeoutException, Logger, Injectable, UnauthorizedException } from '@nestjs/common';
 import { TimeoutError, throwError } from 'rxjs';
-import { compareSync } from 'bcrypt';
+import { compareSync, hash } from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -25,13 +25,13 @@ export class AuthService {
                         return throwError(err);
                     }), )
                 .toPromise();
-            console.log('try user: ', user);
             
-            if (user && compareSync(password, user.password)) {
+            // if (compareSync(password, user?.password)) {
+            if (user && (password === user[0].password)) {
                 return user;
+            } else {
+                return null;
             }
-
-            return null;
         } catch (e) {
             Logger.log(e);
             throw e;
@@ -40,21 +40,19 @@ export class AuthService {
 
     async login(user) {
         // const payload = { user, sub: user.id };
-        console.log('user: ', user.username);
-        const validUser = this.validateUser(user.username, user.password);
-        console.log('validUser: ', validUser);
+        // const password = await hash(user.password, 10);
+        const validUser = await this.validateUser(user.username, user.password);
         if (!validUser) {
-            console.log('No: ', validUser);
             throw new UnauthorizedException();
         } else {
-            console.log('Yes: ', validUser);
             const payload = { username: user.username, password: user.password };
 
             return {
-                // userId: user.id,
                 // accessToken: this.jwtService.sign(payload),
+                userId: validUser[0]._id,
                 idToken: this.jwtService.sign(payload),
-                expiresIn: 30
+                expiresIn: 30,
+                userRole: validUser[0].role,
             };
         }
     }
